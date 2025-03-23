@@ -5,46 +5,8 @@ import { Metrics } from '@aws-lambda-powertools/metrics'
 import { Tracer } from '@aws-lambda-powertools/tracer'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { TokenContext } from '../auth/TokenValidator'
-
-interface BatchRequest {
-  operation: 'upload' | 'download'
-  transfers: string[]
-  ref?: { name: string }
-  objects: { oid: string, size: number }[]
-  hash_algo: 'sha256'
-}
-
-interface BatchError {
-  message: string
-  documentation_url?: string
-  request_id: string
-}
-
-interface BatchResponse {
-  transfer?: 'basic'
-  objects: ResponseObject[]
-  hash_algo: 'sha256'
-}
-
-interface ResponseObject {
-  oid: string
-  size: number
-  error?: {
-    code: number
-    message: string
-  }
-  authenticated?: boolean
-  actions?: {
-    download?: {
-      href: string
-      expires_in: number
-    }
-    upload?: {
-      href: string
-      expires_in: number
-    }
-  }
-}
+import { BatchError, BatchRequest, BatchResponse, ResponseObject } from './api-types'
+import { ConfigValue, loadConfig } from '../config'
 
 const metrics = new Metrics({
   namespace: 'serverless-lfs',
@@ -52,19 +14,22 @@ const metrics = new Metrics({
 })
 const tracer = new Tracer()
 
+/**
+ * Handler for the batch API.
+ */
 export class BatchHandler implements LambdaInterface {
-  private readonly bucket: string
-  private readonly publicRead = process.env.ALLOW_PUBLIC_READ === 'true'
-  private readonly publicWrite = this.publicRead && process.env.ALLOW_PUBLIC_WRITE === 'true'
+  /**
+   * Build a new batch handler.
+   *
+   * @param s3 the S3 client to use
+   * @param config the config for this handler
+   * @throws Error if the BUCKET environment variable is not provided
+   */
+  private constructor(private readonly s3: S3, private readonly config: ConfigValue) {
+  }
 
-  constructor(private readonly s3: S3) {
-    const bucket = process.env.BUCKET
-    if (bucket === undefined) {
-      throw new Error('No bucket specified')
-    }
-    else {
-      this.bucket = bucket
-    }
+  public static async build(s3: S3): Promise<BatchHandler> {
+    return new BatchHandler(s3, await loadConfig())
   }
 
   @metrics.logMetrics({ captureColdStartMetric: true })
@@ -77,11 +42,11 @@ export class BatchHandler implements LambdaInterface {
         statusCode: 400,
       }
     }
-    const request: BatchRequest = JSON.parse(event.body)
+    const request: BatchRequest = JSON.parse(event.body) as BatchRequest
 
     switch (request.operation) {
       case 'upload':
-        if (this.publicWrite || event.requestContext.authorizer.lambda.tokenValid) {
+        if (this.config.publicWrite || event.requestContext.authorizer.lambda.tokenValid) {
           result = await this.upload(request)
         }
         else {
@@ -98,7 +63,7 @@ export class BatchHandler implements LambdaInterface {
         }
         break
       case 'download':
-        if (this.publicRead || event.requestContext.authorizer.lambda.tokenValid) {
+        if (this.config.publicRead || event.requestContext.authorizer.lambda.tokenValid) {
           result = await this.download(request)
         }
         else {
@@ -134,7 +99,7 @@ export class BatchHandler implements LambdaInterface {
       try {
         const metadata = await this.s3.getObjectAttributes({
           Key: oid,
-          Bucket: this.bucket,
+          Bucket: this.config.bucket,
           ObjectAttributes: [ObjectAttributes.OBJECT_SIZE],
         })
 
@@ -151,7 +116,7 @@ export class BatchHandler implements LambdaInterface {
         else {
           const command: GetObjectCommand = new GetObjectCommand({
             Key: oid,
-            Bucket: this.bucket,
+            Bucket: this.config.bucket,
           })
           const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 })
 
@@ -200,7 +165,7 @@ export class BatchHandler implements LambdaInterface {
       const size = item.size
       const command: PutObjectCommand = new PutObjectCommand({
         Key: oid,
-        Bucket: this.bucket,
+        Bucket: this.config.bucket,
         StorageClass: 'INTELLIGENT_TIERING',
         ContentLength: size,
         ChecksumSHA256: oid,

@@ -4,8 +4,8 @@ import { Duration, RemovalPolicy } from 'aws-cdk-lib'
 import { Effect, ManagedPolicy, PolicyStatement } from 'aws-cdk-lib/aws-iam'
 
 export class S3Storage extends Construct {
-  private bucket: Bucket
-  private accessPolicy: ManagedPolicy
+  private readonly bucket: Bucket
+  private readonly accessPolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string) {
     super(scope, id)

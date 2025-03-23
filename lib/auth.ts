@@ -3,19 +3,13 @@ import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam'
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import { Architecture, Code, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda'
 import path from 'node:path'
+import { FunctionConfig } from './config'
 
 export class AuthorizerFunctions extends Construct {
   readonly authFunction: NodejsFunction
 
-  constructor(scope: Construct, id: string) {
+  constructor(scope: Construct, id: string, config: FunctionConfig) {
     super(scope, id)
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { publicRead, publicWrite, userInfoEndpoint, emailClaim } = this.node.getAllContext({
-      publicRead: false,
-      publicWrite: false,
-      emailClaim: undefined,
-    })
 
     const authLambdaRole = new Role(this, 'auth-lambda-role', {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
@@ -25,12 +19,7 @@ export class AuthorizerFunctions extends Construct {
       architecture: Architecture.ARM_64,
       code: Code.fromAsset(path.join(__dirname, 'functions')),
       description: 'validates authentication tokens',
-      environment: {
-        USER_INFO_ENDPOINT: userInfoEndpoint as string,
-        ALLOW_PUBLIC_READ: publicRead as boolean ? 'true' : 'false',
-        ALLOW_PUBLIC_WRITE: publicWrite as boolean ? 'true' : 'false',
-        EMAIL_CLAIM: emailClaim as string,
-      },
+      environment: config.envVars,
       handler: 'auth-token.verifyHandler',
       role: authLambdaRole,
       runtime: Runtime.NODEJS_22_X,

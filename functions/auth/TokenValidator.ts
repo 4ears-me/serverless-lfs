@@ -2,6 +2,7 @@ import { LambdaInterface } from '@aws-lambda-powertools/commons/types'
 import { APIGatewayRequestAuthorizerEventV2, APIGatewaySimpleAuthorizerWithContextResult, Context } from 'aws-lambda'
 import { Tracer } from '@aws-lambda-powertools/tracer'
 import { Metrics } from '@aws-lambda-powertools/metrics'
+import { ConfigValue, loadConfig } from '../config'
 
 const tracer = new Tracer()
 const metrics = new Metrics({
@@ -16,20 +17,14 @@ export interface TokenContext {
 }
 
 export class TokenValidator implements LambdaInterface {
-  private readonly publicRead = process.env.ALLOW_PUBLIC_READ === 'true'
-  private readonly publicWrite = this.publicRead && process.env.ALLOW_PUBLIC_WRITE === 'true'
-  private readonly anyPublic = this.publicWrite || this.publicRead
-  private readonly userInfoEndpoint: string
-  private readonly emailClaim = process.env.EMAIL_CLAIM ?? 'email'
+  private readonly anyPublic: boolean
 
-  constructor() {
-    const endpoint = process.env.USER_INFO_ENDPOINT
-    if (endpoint === undefined) {
-      throw new Error('user endpoint must be defined')
-    }
-    else {
-      this.userInfoEndpoint = endpoint
-    }
+  private constructor(private readonly config: ConfigValue) {
+    this.anyPublic = config.publicRead
+  }
+
+  public static async build(): Promise<TokenValidator> {
+    return new TokenValidator(await loadConfig())
   }
 
   @tracer.captureLambdaHandler()
@@ -54,7 +49,7 @@ export class TokenValidator implements LambdaInterface {
 
     if (token.startsWith('Bearer ')) {
       context.tokenProvided = true
-      const result = await fetch(this.userInfoEndpoint, {
+      const result = await fetch(this.config.userInfoEndpoint, {
         method: 'GET',
         headers: {
           Authorization: token,
@@ -64,7 +59,7 @@ export class TokenValidator implements LambdaInterface {
         context.tokenValid = true
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const obj: Record<string, unknown> = await result.json()
-        const email = obj[this.emailClaim]
+        const email = obj[this.config.emailClaim ?? 'email']
         if (typeof email === 'string') {
           context.email = email
         }

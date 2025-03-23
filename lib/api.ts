@@ -5,12 +5,16 @@ import { AuthorizerFunctions } from './auth'
 import { CfnOutput } from 'aws-cdk-lib'
 import { BatchApi } from './batch'
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations'
+import { FunctionConfig } from './config'
+import { S3Storage } from './s3-storage'
 
 export class LfsApi extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id)
 
-    const auth = new AuthorizerFunctions(this, 'auth-functions')
+    const s3 = new S3Storage(this, 'lfs-storage')
+    const config = new FunctionConfig(this, 'lfs-function-config', s3.bucketName)
+    const auth = new AuthorizerFunctions(this, 'auth-functions', config)
 
     const api = new HttpApi(this, 'lfs-api', {
       apiName: 'lfs-api',
@@ -21,7 +25,7 @@ export class LfsApi extends Construct {
 
     new CfnOutput(this, 'ApiBaseUrl', { value: api.apiEndpoint })
 
-    const batchApi = new BatchApi(this, 'batch-api')
+    const batchApi = new BatchApi(this, 'batch-api', s3, config)
 
     const integration = new HttpLambdaIntegration('batch-api-integration', batchApi.batchHandler)
     api.addRoutes({
