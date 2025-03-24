@@ -19,8 +19,11 @@ export interface TokenContext {
 export class TokenValidator implements LambdaInterface {
   private readonly anyPublic: boolean
 
-  private constructor(private readonly config: ConfigValue) {
+  constructor(private readonly config: ConfigValue) {
     this.anyPublic = config.publicRead
+    if (!this.config.userInfoEndpoint) {
+      throw new Error('cannot authenticate without a user info endpoint')
+    }
   }
 
   public static async build(): Promise<TokenValidator> {
