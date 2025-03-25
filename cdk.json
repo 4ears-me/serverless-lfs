@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/serverless-lfs.ts",
+  "app": "npx tsx bin/serverless-lfs.ts",
   "watch": {
     "include": [
       "**"
@@ -13,7 +13,8 @@
       "package*.json",
       "yarn.lock",
       "node_modules",
-      "test"
+      "test",
+      "coverage"
     ]
   },
   "context": {

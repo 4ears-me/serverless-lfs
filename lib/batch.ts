@@ -1,8 +1,7 @@
 import { Construct } from 'constructs'
-import { Architecture, Code, IFunction, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda'
+import { Architecture, IFunction, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda'
 import { S3Storage } from './s3-storage'
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
-import path from 'node:path'
+import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs'
 import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam'
 import { FunctionConfig } from './config'
 
@@ -20,13 +19,21 @@ export class BatchApi extends Construct {
 
     this.batchHandler = new NodejsFunction(this, 'batch-function', {
       architecture: Architecture.ARM_64,
-      code: Code.fromAsset(path.join(__dirname, 'functions')),
-      description: 'validates authentication tokens',
+      description: 'handles batch API calls',
       environment: config.envVars,
-      handler: 'auth-token.verifyHandler',
+      handler: 'batchHandler',
+      entry: 'functions/batch.ts',
       role: role,
       runtime: Runtime.NODEJS_22_X,
       tracing: Tracing.ACTIVE,
+      bundling: {
+        format: OutputFormat.ESM,
+        minify: false,
+        esbuildArgs: {
+          '--tree-shaking': 'true',
+        },
+        bundleAwsSDK: false,
+      },
     })
   }
 }

@@ -1,10 +1,8 @@
 import { LambdaInterface } from '@aws-lambda-powertools/commons/types'
 import { APIGatewayRequestAuthorizerEventV2, APIGatewaySimpleAuthorizerWithContextResult, Context } from 'aws-lambda'
-import { Tracer } from '@aws-lambda-powertools/tracer'
 import { Metrics } from '@aws-lambda-powertools/metrics'
 import { ConfigValue } from '../config'
 
-const tracer = new Tracer()
 const metrics = new Metrics({
   namespace: 'serverless-lfs',
   serviceName: 'auth',
@@ -26,7 +24,6 @@ export class TokenValidator implements LambdaInterface {
     }
   }
 
-  @tracer.captureLambdaHandler()
   @metrics.logMetrics({ captureColdStartMetric: true })
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async handler(event: APIGatewayRequestAuthorizerEventV2, _context: Context): Promise<APIGatewaySimpleAuthorizerWithContextResult<TokenContext>> {

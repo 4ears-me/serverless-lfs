@@ -19,6 +19,7 @@ export class S3Storage extends Construct {
       },
       bucketKeyEnabled: true,
       encryption: BucketEncryption.KMS_MANAGED,
+      enforceSSL: true,
       intelligentTieringConfigurations: [
         {
           name: 'archive',
@@ -27,7 +28,7 @@ export class S3Storage extends Construct {
       ],
       lifecycleRules: [
         {
-          abortIncompleteMultipartUploadAfter: Duration.minutes(60),
+          abortIncompleteMultipartUploadAfter: Duration.days(1),
           enabled: true,
           id: 'multipart',
         },

@@ -1,8 +1,7 @@
 import { Construct } from 'constructs'
 import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam'
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
-import { Architecture, Code, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda'
-import path from 'node:path'
+import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs'
+import { Architecture, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda'
 import { FunctionConfig } from './config'
 
 export class AuthorizerFunctions extends Construct {
@@ -17,13 +16,21 @@ export class AuthorizerFunctions extends Construct {
 
     this.authFunction = new NodejsFunction(this, 'token-validator', {
       architecture: Architecture.ARM_64,
-      code: Code.fromAsset(path.join(__dirname, 'functions')),
       description: 'validates authentication tokens',
       environment: config.envVars,
-      handler: 'auth-token.verifyHandler',
+      handler: 'verifyHandler',
+      entry: 'functions/auth-token.ts',
       role: authLambdaRole,
       runtime: Runtime.NODEJS_22_X,
       tracing: Tracing.ACTIVE,
+      bundling: {
+        format: OutputFormat.ESM,
+        minify: false,
+        esbuildArgs: {
+          '--tree-shaking': 'true',
+        },
+        bundleAwsSDK: false,
+      },
     })
   }
 }

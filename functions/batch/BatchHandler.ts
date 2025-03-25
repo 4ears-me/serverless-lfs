@@ -2,7 +2,6 @@ import { LambdaInterface } from '@aws-lambda-powertools/commons/types'
 import { APIGatewayProxyEventV2WithLambdaAuthorizer, APIGatewayProxyResultV2, Context } from 'aws-lambda'
 import { GetObjectCommand, NoSuchKey, ObjectAttributes, PutObjectCommand, S3 } from '@aws-sdk/client-s3'
 import { Metrics } from '@aws-lambda-powertools/metrics'
-import { Tracer } from '@aws-lambda-powertools/tracer'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { TokenContext } from '../auth/TokenValidator'
 import { BatchError, BatchRequest, BatchResponse, ResponseObject } from './api-types'
@@ -12,7 +11,6 @@ const metrics = new Metrics({
   namespace: 'serverless-lfs',
   serviceName: 'batch',
 })
-const tracer = new Tracer()
 
 /**
  * Handler for the batch API.
@@ -29,7 +27,6 @@ export class BatchHandler implements LambdaInterface {
   }
 
   @metrics.logMetrics({ captureColdStartMetric: true })
-  @tracer.captureLambdaHandler()
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async handler(event: APIGatewayProxyEventV2WithLambdaAuthorizer<TokenContext>, _context: Context): Promise<APIGatewayProxyResultV2> {
     let result: BatchResponse

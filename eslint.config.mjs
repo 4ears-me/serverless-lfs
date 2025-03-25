@@ -18,7 +18,10 @@ export default tseslint.config(
     },
   },
   {
-    files: ['eslint.config.mjs', 'coverage/**'],
+    files: ['eslint.config.mjs'],
     extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    ignores: ['coverage/**', 'cdk.out/**'],
   },
 )
