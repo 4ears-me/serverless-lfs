@@ -1,18 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 import { ConfigValue } from '../../functions/config'
-import { Uint8ArrayBlobAdapter } from '@smithy/util-stream'
 import { TokenValidator } from '../../functions/auth/TokenValidator'
-import { AwsStub, mockClient } from 'aws-sdk-client-mock'
-import {
-  AppConfigDataClient, AppConfigDataClientResolvedConfig,
-  GetLatestConfigurationCommand, ServiceInputTypes, ServiceOutputTypes,
-  StartConfigurationSessionCommand,
-} from '@aws-sdk/client-appconfigdata'
 import { APIGatewayEventRequestContextV2, Context } from 'aws-lambda'
-import { clearCaches } from '@aws-lambda-powertools/parameters'
-
-let client: AwsStub<ServiceInputTypes, ServiceOutputTypes, AppConfigDataClientResolvedConfig>
 
 const context: Context = {
   callbackWaitsForEmptyEventLoop: true,
@@ -55,19 +45,7 @@ const apiContext: APIGatewayEventRequestContextV2 = {
   timeEpoch: 0,
 } satisfies APIGatewayEventRequestContextV2
 
-afterEach(() => {
-  client.reset()
-  clearCaches()
-})
-
-beforeEach(() => {
-  client = mockClient(AppConfigDataClient)
-  client.on(StartConfigurationSessionCommand).resolves({
-    InitialConfigurationToken: 'foo',
-  })
-})
-
-test('test build auth handler', async () => {
+test('test build auth handler', () => {
   const config: ConfigValue = {
     bucket: 'bucket-name',
     userInfoEndpoint: 'http://localhost:8080/',
@@ -75,11 +53,7 @@ test('test build auth handler', async () => {
     publicRead: false,
   }
 
-  client.on(GetLatestConfigurationCommand).resolves({
-    Configuration: Uint8ArrayBlobAdapter.fromString(JSON.stringify(config)),
-  })
-
-  await TokenValidator.build()
+  new TokenValidator(config)
 })
 
 test('test missing user info endpoint', () => {
@@ -106,6 +80,44 @@ test('test successful auth', async () => {
   fetchMock.mockResponse({
     status: 200,
     body: JSON.stringify({ email: 'foo@bar.com' }),
+  })
+
+  const result = await validator.handler({
+    cookies: [],
+    identitySource: [],
+    rawPath: '',
+    rawQueryString: '',
+    requestContext: apiContext,
+    routeArn: '',
+    routeKey: '',
+    type: 'REQUEST',
+    version: '',
+    headers: {
+      Authorization: 'Bearer 12345',
+    },
+  }, context)
+
+  expect(result.isAuthorized).eq(true)
+  const resultContext = result.context
+  expect(resultContext.email).eq('foo@bar.com')
+  expect(resultContext.tokenValid).eq(true)
+  expect(resultContext.tokenProvided).eq(true)
+})
+
+test('test successful auth different claim', async () => {
+  const config: ConfigValue = {
+    bucket: 'bucket-name',
+    publicRead: false,
+    publicWrite: false,
+    userInfoEndpoint: 'http://localhost:8080/',
+    emailClaim: 'userid',
+  }
+
+  const validator = new TokenValidator(config)
+
+  fetchMock.mockResponse({
+    status: 200,
+    body: JSON.stringify({ userid: 'foo@bar.com' }),
   })
 
   const result = await validator.handler({

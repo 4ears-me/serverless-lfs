@@ -6,7 +6,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { TokenContext } from '../auth/TokenValidator'
 import { BatchError, BatchRequest, BatchResponse, ResponseObject } from './api-types'
-import { ConfigValue, loadConfig } from '../config'
+import { ConfigValue } from '../config'
 
 const metrics = new Metrics({
   namespace: 'serverless-lfs',
@@ -25,11 +25,7 @@ export class BatchHandler implements LambdaInterface {
    * @param config the config for this handler
    * @throws Error if the BUCKET environment variable is not provided
    */
-  private constructor(private readonly s3: S3, private readonly config: ConfigValue) {
-  }
-
-  public static async build(s3: S3): Promise<BatchHandler> {
-    return new BatchHandler(s3, await loadConfig())
+  constructor(private readonly s3: S3, private readonly config: ConfigValue) {
   }
 
   @metrics.logMetrics({ captureColdStartMetric: true })
@@ -106,7 +102,7 @@ export class BatchHandler implements LambdaInterface {
         if (metadata.ObjectSize != size) {
           objects.push({
             oid: oid,
-            size: size,
+            size: metadata.ObjectSize ?? 0,
             error: {
               code: 422,
               message: 'Object size mismatch',

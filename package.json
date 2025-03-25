@@ -7,9 +7,10 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "vitest",
+    "test": "vitest run",
     "cdk": "cdk",
-    "lint": "npx eslint ."
+    "check": "npx eslint .",
+    "lint": "npx eslint --fix ."
   },
   "devDependencies": {
     "@aws-sdk/client-appconfigdata": "^3.758.0",

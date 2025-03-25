@@ -18,7 +18,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['eslint.config.mjs', 'jest.config.js'],
+    files: ['eslint.config.mjs', 'coverage/**'],
     extends: [tseslint.configs.disableTypeChecked],
   },
 )

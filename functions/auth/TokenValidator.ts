@@ -2,7 +2,7 @@ import { LambdaInterface } from '@aws-lambda-powertools/commons/types'
 import { APIGatewayRequestAuthorizerEventV2, APIGatewaySimpleAuthorizerWithContextResult, Context } from 'aws-lambda'
 import { Tracer } from '@aws-lambda-powertools/tracer'
 import { Metrics } from '@aws-lambda-powertools/metrics'
-import { ConfigValue, loadConfig } from '../config'
+import { ConfigValue } from '../config'
 
 const tracer = new Tracer()
 const metrics = new Metrics({
@@ -24,10 +24,6 @@ export class TokenValidator implements LambdaInterface {
     if (!this.config.userInfoEndpoint) {
       throw new Error('cannot authenticate without a user info endpoint')
     }
-  }
-
-  public static async build(): Promise<TokenValidator> {
-    return new TokenValidator(await loadConfig())
   }
 
   @tracer.captureLambdaHandler()
@@ -56,6 +52,7 @@ export class TokenValidator implements LambdaInterface {
         method: 'GET',
         headers: {
           Authorization: token,
+          Accept: 'application/json',
         },
       })
       if (result.status === 200) {
